@@ -48,14 +48,10 @@
       pointer-events: none;
       cursor: not-allowed;
     }
-    /* Suggestion List for Stock Update Modal */
-    #updateStockSuggestion {
-      position: absolute;
-      z-index: 1000;
-      width: 100%;
+    /* Suggestion List for Modals */
+    .list-group {
       max-height: 200px;
       overflow-y: auto;
-      display: none;
     }
     /* Toast Container at Top Center */
     .toast-container {
@@ -90,6 +86,9 @@
       </button>
       <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#invoiceModal">
         <i class="fas fa-file-invoice"></i> ইনভয়েস তৈরি
+      </button>
+      <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#invoiceSearchModal">
+        <i class="fas fa-search"></i> ইনভয়েস খুঁজুন
       </button>
     </div>
 
@@ -145,7 +144,7 @@
 
   <!-- Modals -->
 
-  <!-- Add Product Modal -->
+  <!-- Add Product Modal with Suggestion -->
   <div class="modal fade" id="addProductModal" tabindex="-1" aria-labelledby="addProductModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -155,9 +154,10 @@
         </div>
         <div class="modal-body">
           <form id="addProductForm">
-            <div class="mb-3">
+            <div class="mb-3 position-relative">
               <label for="prodName" class="form-label">প্রোডাক্টের নাম</label>
               <input type="text" class="form-control" id="prodName" placeholder="প্রোডাক্টের নাম" required>
+              <div id="addProductSuggestion" class="list-group"></div>
             </div>
             <div class="mb-3">
               <label for="prodUnit" class="form-label">ইউনিট টাইপ</label>
@@ -185,7 +185,7 @@
     </div>
   </div>
 
-  <!-- Update Stock Modal with Search -->
+  <!-- Update Stock Modal (Additive Update with Search) -->
   <div class="modal fade" id="updateStockModal" tabindex="-1" aria-labelledby="updateStockModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -212,7 +212,7 @@
               <input type="number" class="form-control" id="selectedProdStock" placeholder="বর্তমান স্টক" disabled>
             </div>
             <div class="mb-3">
-              <label for="newProdStock" class="form-label">নতুন স্টক সংখ্যা</label>
+              <label for="newProdStock" class="form-label">নতুন স্টক সংখ্যা (যোগ হবে)</label>
               <input type="number" class="form-control" id="newProdStock" placeholder="নতুন স্টক সংখ্যা" required>
             </div>
             <button type="submit" class="btn btn-warning w-100">আপডেট করুন</button>
@@ -222,7 +222,7 @@
     </div>
   </div>
 
-  <!-- Invoice Modal -->
+  <!-- Invoice Creation Modal -->
   <div class="modal fade" id="invoiceModal" tabindex="-1" aria-labelledby="invoiceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
@@ -233,14 +233,78 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="বন্ধ"></button>
         </div>
         <div class="modal-body">
+          <!-- Customer Details -->
+          <div class="mb-3">
+            <label for="customerName" class="form-label">কাস্টমারের নাম</label>
+            <input type="text" id="customerName" class="form-control" placeholder="কাস্টমারের নাম লিখুন">
+          </div>
+          <div class="mb-3">
+            <label for="customerMobile" class="form-label">মোবাইল নম্বর</label>
+            <input type="text" id="customerMobile" class="form-control" placeholder="মোবাইল নম্বর লিখুন">
+          </div>
+          <!-- Invoice Items -->
           <div id="invoiceContent">
             <!-- ইনভয়েসের বিস্তারিত এখানে দেখানো হবে -->
           </div>
+          <!-- Total and Discount -->
+          <div class="mt-3">
+            <h5 class="text-end">সর্বমোট: <span id="overallTotal"></span></h5>
+            <div class="input-group">
+              <span class="input-group-text">ডিসকাউন্ট (৳)</span>
+              <input type="number" id="discountAmount" class="form-control" placeholder="ডিসকাউন্ট মূল্য">
+            </div>
+          </div>
         </div>
         <div class="modal-footer">
-          <!-- Sales Button: বাম পাশে -->
+          <!-- Sales Button: Sales সফল হলে, Invoice Creation Modal বন্ধ করে Invoice View Modal ওপেন হবে -->
           <button id="salesButton" class="btn btn-secondary">সেলস</button>
-          <button id="printInvoice" class="btn btn-primary">প্রিন্ট করুন</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">বন্ধ করুন</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice View Modal (For Viewing & Printing the Invoice) -->
+  <div class="modal fade" id="invoiceViewModal" tabindex="-1" aria-labelledby="invoiceViewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title" id="invoiceViewModalLabel">
+            <i class="fas fa-file-invoice"></i> ইনভয়েস বিস্তারিত
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="বন্ধ"></button>
+        </div>
+        <div class="modal-body" id="invoiceViewContent">
+          <!-- এখানে ইনভয়েসের বিস্তারিত দেখানো হবে, Authority Signature সহ -->
+        </div>
+        <div class="modal-footer">
+          <button id="printInvoiceView" class="btn btn-primary">প্রিন্ট করুন</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">বন্ধ করুন</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice Search Modal (For Searching Invoices) -->
+  <div class="modal fade" id="invoiceSearchModal" tabindex="-1" aria-labelledby="invoiceSearchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header bg-info text-white">
+          <h5 class="modal-title" id="invoiceSearchModalLabel"><i class="fas fa-search"></i> ইনভয়েস খুঁজুন</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="বন্ধ"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="searchInvoiceNumber" class="form-label">ইনভয়েস নম্বর</label>
+            <input type="text" id="searchInvoiceNumber" class="form-control" placeholder="ইনভয়েস নম্বর লিখুন">
+          </div>
+          <button id="searchInvoiceBtn" class="btn btn-info mb-3">খুঁজুন</button>
+          <div id="invoiceSearchResult">
+            <!-- এখানে ইনভয়েসের ফলাফল দেখানো হবে, যা Invoice View Modal এর মতো হবে -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="printInvoiceSearch" class="btn btn-primary">প্রিন্ট করুন</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">বন্ধ করুন</button>
         </div>
       </div>
@@ -254,9 +318,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   <script>
-    /***********************
-     Firebase Configuration
-    ***********************/
+    // Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyAlCr-cphqHaAGN8SoDJ_aOnVBzJOyFLyo",
       authDomain: "post-41a7c.firebaseapp.com",
@@ -268,13 +330,10 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /***********************
-     Toast Message Function (with type)
-    ***********************/
+    // Toast Message Function (with type)
     function showToast(message, type = 'info') {
       const toastHeader = document.getElementById('toastHeader');
       const toastTitle = document.getElementById('toastTitle');
-      // Set default classes and title
       let headerClass = 'bg-primary';
       let titleText = 'Info';
       if (type === 'success') {
@@ -287,20 +346,15 @@
         headerClass = 'bg-warning';
         titleText = 'সতর্কতা';
       }
-      // Update the header class and title text
       toastHeader.className = 'toast-header ' + headerClass + ' text-white';
       toastTitle.textContent = titleText;
-      // Set message
       document.getElementById('toastBody').textContent = message;
-      // Show toast
       const toastEl = document.getElementById('liveToast');
       const toast = bootstrap.Toast.getOrCreateInstance(toastEl);
       toast.show();
     }
 
-    /***********************
-     Theme Toggle
-    ***********************/
+    // Theme Toggle
     document.getElementById('themeToggle').addEventListener('click', function() {
       document.body.classList.toggle('dark-mode');
       const icon = this.querySelector('i');
@@ -308,9 +362,41 @@
       icon.classList.toggle('fa-sun');
     });
 
-    /***********************
-     Add Product Functionality
-    ***********************/
+    // Add Product with Suggestion
+    document.getElementById('prodName').addEventListener('input', function() {
+      const query = this.value.trim();
+      const suggestionBox = document.getElementById('addProductSuggestion');
+      if(query.length === 0) {
+        suggestionBox.style.display = 'none';
+        suggestionBox.innerHTML = '';
+        return;
+      }
+      db.collection('products')
+        .orderBy('name')
+        .startAt(query)
+        .endAt(query + '\uf8ff')
+        .get()
+        .then(snapshot => {
+          let suggestionsHTML = '';
+          snapshot.forEach(doc => {
+            const prod = doc.data();
+            suggestionsHTML += `<button type="button" class="list-group-item list-group-item-action" data-name="${prod.name}">${prod.name}</button>`;
+          });
+          if(suggestionsHTML) {
+            suggestionBox.innerHTML = suggestionsHTML;
+            suggestionBox.style.display = 'block';
+          } else {
+            suggestionBox.style.display = 'none';
+            suggestionBox.innerHTML = '';
+          }
+        });
+    });
+    document.getElementById('addProductSuggestion').addEventListener('click', function(e) {
+      if(e.target && e.target.matches('button')) {
+        document.getElementById('prodName').value = e.target.getAttribute('data-name');
+        this.style.display = 'none';
+      }
+    });
     document.getElementById('addProductForm').addEventListener('submit', function(e) {
       e.preventDefault();
       const name = document.getElementById('prodName').value;
@@ -327,6 +413,7 @@
       .then(() => {
         showToast('প্রোডাক্ট সফলভাবে যোগ হয়েছে!', 'success');
         document.getElementById('addProductForm').reset();
+        document.getElementById('addProductSuggestion').style.display = 'none';
         const addModal = bootstrap.Modal.getInstance(document.getElementById('addProductModal'));
         addModal.hide();
       })
@@ -336,9 +423,7 @@
       });
     });
 
-    /***********************
-     Fetch and Display Products (Realtime)
-    ***********************/
+    // Fetch and Display Products (Realtime)
     let allProducts = [];
     function fetchProducts() {
       db.collection('products').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
@@ -347,7 +432,6 @@
       });
     }
     fetchProducts();
-
     function renderProducts(products) {
       const tbody = document.getElementById('productTableBody');
       tbody.innerHTML = products.map(product => `
@@ -368,10 +452,6 @@
         </tr>
       `).join('');
     }
-
-    /***********************
-     Apply Filters
-    ***********************/
     function applyFilters() {
       const searchInput = document.getElementById('searchInput').value.toLowerCase();
       const stockFilter = document.getElementById('stockFilter').value;
@@ -390,11 +470,8 @@
     document.getElementById('searchInput').addEventListener('input', applyFilters);
     document.getElementById('stockFilter').addEventListener('change', applyFilters);
 
-    /***********************
-     Add to Invoice Cart Functionality
-    ***********************/
+    // Add to Invoice Cart Functionality
     let invoiceCart = [];
-    let memoNo = 1;
     function addToInvoice(id, name, unitType, price) {
       const existing = invoiceCart.find(item => item.id === id);
       if (existing) {
@@ -405,39 +482,34 @@
       showToast(`${name} কার্টে যোগ হয়েছে!`, 'success');
     }
 
-    /***********************
-     Get Available Stock for a Product
-    ***********************/
+    // Get Available Stock for a Product
     function getStockForProduct(id) {
       const prod = allProducts.find(p => p.id === id);
       return prod ? prod.stock : 0;
     }
 
-    /***********************
-     Invoice Modal Functionality with Quantity Validation and Unit Conversion for kg
-    ***********************/
+    // Invoice Creation Modal Functionality
     document.getElementById('invoiceModal').addEventListener('show.bs.modal', function(event) {
       if (invoiceCart.length === 0) {
         showToast("কার্টে কোনো পণ্য নেই।", 'warning');
         event.preventDefault();
         return;
       }
-      let invoiceHTML = `<h5>মেমো নং: INV-${memoNo}</h5>
-                         <table class="table table-bordered mt-3">
-                           <thead>
-                             <tr>
-                               <th>পণ্য</th>
-                               <th>দাম</th>
-                               <th>পরিমাণ</th>
-                               <th>টোটাল</th>
-                             </tr>
-                           </thead>
-                           <tbody>`;
+      let invoiceHTML = `<h5>মেমো নং: (Generating...)</h5>`;
+      invoiceHTML += `<table class="table table-bordered mt-3">
+                        <thead>
+                          <tr>
+                            <th>পণ্যের নাম</th>
+                            <th>দাম</th>
+                            <th>পরিমাণ</th>
+                            <th>টোটাল</th>
+                          </tr>
+                        </thead>
+                        <tbody>`;
       let totalAmount = 0;
       invoiceCart.forEach(item => {
         let qtyHtml = "";
         if(item.unitType === 'kg'){
-          // যদি ইউনিট kg হয়, তাহলে কেজি ও গ্রামে ভাগ করে দেখাবে
           const kgPart = Math.floor(item.quantity);
           const gramPart = Math.round((item.quantity - kgPart) * 1000);
           qtyHtml = `<div class="input-group">
@@ -458,13 +530,11 @@
                           <td class="item-total">৳${(item.price * item.quantity).toFixed(2)}</td>
                         </tr>`;
       });
-      invoiceHTML += `</tbody></table>
-                      <h5 class="text-end">সর্বমোট: <span id="overallTotal">৳${totalAmount.toFixed(2)}</span></h5>`;
+      invoiceHTML += `</tbody></table>`;
       document.getElementById('invoiceContent').innerHTML = invoiceHTML;
-      document.getElementById('memoNoDisplay').textContent = memoNo;
-      memoNo++;
-
-      // Non-kg products: Validate quantity against available stock
+      document.getElementById('overallTotal').textContent = '৳' + totalAmount.toFixed(2);
+      
+      // Validate non-kg products
       document.querySelectorAll('tr:not([data-unit="kg"]) .invoice-qty').forEach(input => {
         input.addEventListener('change', function() {
           const newQty = parseFloat(this.value);
@@ -472,7 +542,7 @@
           const prodId = tr.getAttribute('data-id');
           const availableStock = getStockForProduct(prodId);
           if(newQty > availableStock) {
-            showToast("স্টকের চেয়ে বেশি পরিমাণ নিতে পারবেন না! সর্বোচ্চ: " + availableStock, 'warning');
+            showToast("স্টকের চেয়ে বেশি পরিমাণ নেওয়া যাবে না! সর্বোচ্চ: " + availableStock, 'warning');
             this.value = availableStock;
           }
           const qty = parseFloat(this.value);
@@ -486,8 +556,8 @@
           document.getElementById('overallTotal').textContent = '৳' + overall.toFixed(2);
         });
       });
-
-      // kg products: Validate both kg and gram inputs
+      
+      // Validate kg products
       document.querySelectorAll('tr[data-unit="kg"]').forEach(tr => {
         const kgInput = tr.querySelector('.invoice-qty-kg');
         const gInput = tr.querySelector('.invoice-qty-g');
@@ -504,7 +574,7 @@
           let totalQty = kg + (grams / 1000);
           const availableStock = getStockForProduct(prodId);
           if(totalQty > availableStock) {
-            showToast("স্টকের চেয়ে বেশি পরিমাণ নিতে পারবেন না! সর্বোচ্চ: " + availableStock, 'warning');
+            showToast("স্টকের চেয়ে বেশি পরিমাণ নেওয়া যাবে না! সর্বোচ্চ: " + availableStock, 'warning');
             kg = Math.floor(availableStock);
             grams = Math.round((availableStock - kg) * 1000);
             kgInput.value = kg;
@@ -522,18 +592,24 @@
         kgInput.addEventListener('change', updateKgRow);
         gInput.addEventListener('change', updateKgRow);
       });
-
+      
       // Clear the invoice cart after generating the modal content
       invoiceCart = [];
     });
 
     /***********************
      Sales Button Functionality
+       - Validate quantities.
+       - Determine new memoNo from Firebase invoices.
+       - Update stock and save invoice data (with customer name, mobile, discount, etc.).
+       - Then close Invoice Creation Modal and open Invoice View Modal.
     ***********************/
     document.getElementById('salesButton').addEventListener('click', function() {
+      let valid = true;
       const rows = document.querySelectorAll('#invoiceContent tr[data-id]');
       rows.forEach(tr => {
         const prodId = tr.getAttribute('data-id');
+        const availableStock = getStockForProduct(prodId);
         let qty = 0;
         if(tr.getAttribute('data-unit') === 'kg'){
           const kg = parseFloat(tr.querySelector('.invoice-qty-kg').value) || 0;
@@ -542,29 +618,230 @@
         } else {
           qty = parseFloat(tr.querySelector('.invoice-qty').value);
         }
+        if(qty > availableStock){
+          valid = false;
+        }
+      });
+      if(!valid){
+        showToast("কিছু পণ্যের ইনভয়েস পরিমাণ স্টকের চেয়ে বেশি। Sales কার্যকর হবে না!", 'warning');
+        return;
+      }
+      // Gather invoice items
+      const invoiceItems = [];
+      rows.forEach(tr => {
+        const prodId = tr.getAttribute('data-id');
+        const unit = tr.getAttribute('data-unit');
+        let qty = 0;
+        if(unit === 'kg'){
+          const kg = parseFloat(tr.querySelector('.invoice-qty-kg').value) || 0;
+          const grams = parseFloat(tr.querySelector('.invoice-qty-g').value) || 0;
+          qty = kg + (grams / 1000);
+        } else {
+          qty = parseFloat(tr.querySelector('.invoice-qty').value);
+        }
+        invoiceItems.push({
+          productId: prodId,
+          unitType: unit,
+          quantity: qty
+        });
+        // Update stock for each product
         db.collection('products').doc(prodId).get().then(doc => {
           if (doc.exists) {
             const currentStock = doc.data().stock;
             let newStock = currentStock - qty;
-            if (newStock < 0) newStock = 0;
+            if(newStock < 0) newStock = 0;
             db.collection('products').doc(prodId).update({ stock: newStock });
           }
         });
       });
-      showToast("সেলস সফল হয়েছে এবং স্টক আপডেট হয়েছে!", 'success');
+      // Calculate total and discount
+      let totalAmount = parseFloat(document.getElementById('overallTotal').textContent.replace('৳',''));
+      const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+      const finalTotal = totalAmount - discount;
+      // Get customer details
+      const customerName = document.getElementById('customerName').value.trim();
+      const customerMobile = document.getElementById('customerMobile').value.trim();
+      
+      // Determine new memoNo from invoices collection
+      db.collection('invoices').orderBy('memoNo', 'desc').limit(1).get().then(snapshot => {
+        let newMemoNo = 1;
+        if(!snapshot.empty){
+          snapshot.forEach(doc => {
+            newMemoNo = doc.data().memoNo + 1;
+          });
+        }
+        const invoiceData = {
+          memoNo: newMemoNo,
+          customerName,
+          customerMobile,
+          items: invoiceItems,
+          total: totalAmount,
+          discount: discount,
+          finalTotal: finalTotal,
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        db.collection('invoices').add(invoiceData)
+        .then(docRef => {
+          showToast("সেলস সফল হয়েছে, স্টক আপডেট ও ইনভয়েস সংরক্ষণ হয়েছে!", 'success');
+          // Close Invoice Creation Modal
+          const invModal = bootstrap.Modal.getInstance(document.getElementById('invoiceModal'));
+          invModal.hide();
+          // Open Invoice View Modal with saved invoice details
+          openInvoiceViewModal(docRef.id);
+        })
+        .catch(error => {
+          console.error("Error saving invoice:", error);
+          showToast("ইনভয়েস সংরক্ষণ করতে সমস্যা হয়েছে!", 'error');
+        });
+      });
     });
 
     /***********************
-     Print Invoice Functionality
+     Open Invoice View Modal and Display Invoice Details
+       - For each item, display quantity with appropriate unit (kg, liter, pcs) and calculate total.
     ***********************/
-    document.getElementById('printInvoice').addEventListener('click', function() {
+    function openInvoiceViewModal(invoiceId) {
+      db.collection('invoices').doc(invoiceId).get().then(doc => {
+        if(doc.exists){
+          const inv = doc.data();
+          let viewHTML = `<div class="border p-3 mb-3">
+                            <h5>মেমো নং: ${inv.memoNo}</h5>
+                            <p><strong>কাস্টমার:</strong> ${inv.customerName}</p>
+                            <p><strong>মোবাইল:</strong> ${inv.customerMobile}</p>
+                            <table class="table table-bordered">
+                              <thead>
+                                <tr>
+                                  <th>পণ্যের নাম</th>
+                                  <th>দাম</th>
+                                  <th>পরিমাণ</th>
+                                  <th>টোটাল</th>
+                                </tr>
+                              </thead>
+                              <tbody>`;
+          inv.items.forEach(item => {
+            const prod = allProducts.find(p => p.id === item.productId);
+            const prodName = prod ? prod.name : item.productId;
+            const prodPrice = prod ? prod.price : 'N/A';
+            let quantityDisplay = item.quantity;
+            if(item.unitType === 'kg'){
+              quantityDisplay = parseFloat(item.quantity).toFixed(2) + " কেজি";
+            } else if(item.unitType === 'liter'){
+              quantityDisplay = parseFloat(item.quantity).toFixed(2) + " লিটার";
+            } else if(item.unitType === 'pcs'){
+              quantityDisplay = item.quantity + " পিস";
+            }
+            const itemTotal = prod && prodPrice !== 'N/A' ? (prodPrice * item.quantity).toFixed(2) : '--';
+            viewHTML += `<tr>
+                           <td>${prodName}</td>
+                           <td>৳${prodPrice}</td>
+                           <td>${quantityDisplay}</td>
+                           <td>৳${itemTotal}</td>
+                         </tr>`;
+          });
+          viewHTML += `   </tbody>
+                          </table>
+                          <p><strong>মোট:</strong> ৳${inv.total}</p>
+                          <p><strong>ডিসকাউন্ট:</strong> ৳${inv.discount}</p>
+                          <p><strong>ফাইনাল:</strong> ৳${inv.finalTotal}</p>
+                          <div style="margin-top:20px;">
+                            <strong>Authority Signature:</strong> ______________________
+                          </div>
+                        </div>`;
+          document.getElementById('invoiceViewContent').innerHTML = viewHTML;
+          const viewModal = new bootstrap.Modal(document.getElementById('invoiceViewModal'));
+          viewModal.show();
+        } else {
+          showToast("ইনভয়েস পাওয়া যায়নি!", 'error');
+        }
+      }).catch(error => {
+        console.error("Error fetching invoice:", error);
+        showToast("ইনভয়েস দেখতে সমস্যা হয়েছে!", 'error');
+      });
+    }
+
+    /***********************
+     Print Invoice View Functionality
+    ***********************/
+    document.getElementById('printInvoiceView').addEventListener('click', function() {
       window.print();
     });
 
     /***********************
-     Update Stock Modal with Search
+     Invoice Search Functionality
     ***********************/
-    // Listen for input on the search field inside Update Stock Modal
+    document.getElementById('searchInvoiceBtn').addEventListener('click', function() {
+      const invoiceNo = document.getElementById('searchInvoiceNumber').value.trim();
+      if(invoiceNo === ""){
+        showToast("দয়া করে ইনভয়েস নম্বর দিন।", 'warning');
+        return;
+      }
+      db.collection('invoices').where("memoNo", "==", parseInt(invoiceNo)).get()
+      .then(snapshot => {
+        let resultHTML = "";
+        if(snapshot.empty){
+          resultHTML = "<p>কোন ইনভয়েস পাওয়া যায়নি।</p>";
+        } else {
+          snapshot.forEach(doc => {
+            const inv = doc.data();
+            resultHTML += `<div class="border p-3 mb-3">
+                             <h5>মেমো নং: ${inv.memoNo}</h5>
+                             <p><strong>কাস্টমার:</strong> ${inv.customerName}</p>
+                             <p><strong>মোবাইল:</strong> ${inv.customerMobile}</p>
+                             <table class="table table-bordered">
+                               <thead>
+                                 <tr>
+                                   <th>পণ্যের নাম</th>
+                                   <th>দাম</th>
+                                   <th>পরিমাণ</th>
+                                   <th>টোটাল</th>
+                                 </tr>
+                               </thead>
+                               <tbody>`;
+            inv.items.forEach(item => {
+              const prod = allProducts.find(p => p.id === item.productId);
+              const prodName = prod ? prod.name : item.productId;
+              const prodPrice = prod ? prod.price : 'N/A';
+              let quantityDisplay = item.quantity;
+              if(item.unitType === 'kg'){
+                quantityDisplay = parseFloat(item.quantity).toFixed(2) + " কেজি";
+              } else if(item.unitType === 'liter'){
+                quantityDisplay = parseFloat(item.quantity).toFixed(2) + " লিটার";
+              } else if(item.unitType === 'pcs'){
+                quantityDisplay = item.quantity + " পিস";
+              }
+              const itemTotal = prod && prodPrice !== 'N/A' ? (prodPrice * item.quantity).toFixed(2) : '--';
+              resultHTML += `<tr>
+                               <td>${prodName}</td>
+                               <td>৳${prodPrice}</td>
+                               <td>${quantityDisplay}</td>
+                               <td>৳${itemTotal}</td>
+                             </tr>`;
+            });
+            resultHTML += `   </tbody>
+                             </table>
+                             <p><strong>মোট:</strong> ৳${inv.total}</p>
+                             <p><strong>ডিসকাউন্ট:</strong> ৳${inv.discount}</p>
+                             <p><strong>ফাইনাল:</strong> ৳${inv.finalTotal}</p>
+                             <div style="margin-top:20px;">
+                               <strong>Authority Signature:</strong> ______________________
+                             </div>
+                           </div>`;
+          });
+        }
+        document.getElementById('invoiceSearchResult').innerHTML = resultHTML;
+      })
+      .catch(error => {
+        console.error("Error searching invoice:", error);
+        showToast("ইনভয়েস খুঁজতে সমস্যা হয়েছে!", 'error');
+      });
+    });
+    document.getElementById('printInvoiceSearch').addEventListener('click', function() {
+      window.print();
+    });
+
+    /***********************
+     Update Stock Modal with Search (Additive Update)
+    ***********************/
     document.getElementById('updateStockSearch').addEventListener('input', function() {
       const query = this.value.trim();
       const suggestionBox = document.getElementById('updateStockSuggestion');
@@ -596,8 +873,6 @@
           }
         });
     });
-
-    // When a suggestion is clicked, fill the update fields
     document.getElementById('updateStockSuggestion').addEventListener('click', function(e) {
       if(e.target && e.target.matches('button')) {
         const prodId = e.target.getAttribute('data-id');
@@ -606,24 +881,21 @@
         document.getElementById('updateProdId').value = prodId;
         document.getElementById('selectedProdName').value = prodName;
         document.getElementById('selectedProdStock').value = prodStock;
-        // Hide suggestions and set search field to selected product name
         this.style.display = 'none';
         document.getElementById('updateStockSearch').value = prodName;
       }
     });
-
-    /***********************
-     Update Stock Form Submission
-    ***********************/
     document.getElementById('updateStockForm').addEventListener('submit', function(e) {
       e.preventDefault();
       const prodId = document.getElementById('updateProdId').value;
-      const newStock = parseInt(document.getElementById('newProdStock').value);
+      const newStockInput = parseInt(document.getElementById('newProdStock').value);
       if(!prodId) {
         showToast("দয়া করে একটি পণ্য নির্বাচন করুন।", 'warning');
         return;
       }
-      db.collection('products').doc(prodId).update({ stock: newStock })
+      const currentStock = parseInt(document.getElementById('selectedProdStock').value);
+      const updatedStock = currentStock + newStockInput;
+      db.collection('products').doc(prodId).update({ stock: updatedStock })
       .then(() => {
         showToast("স্টক সফলভাবে আপডেট হয়েছে!", 'success');
         const updateModal = bootstrap.Modal.getInstance(document.getElementById('updateStockModal'));
