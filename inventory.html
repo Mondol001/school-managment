@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ইনভেন্টরি ড্যাশবোর্ড - Mondol Shop</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    .card-metric {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mb-4">ইনভেন্টরি ড্যাশবোর্ড</h1>
+    
+    <!-- Row: মোট বিক্রি পণ্য ও মোট বিক্রিত টাকা -->
+    <div class="row">
+      <!-- মোট বিক্রি পণ্য (ক্যাটাগরি অনুযায়ী) -->
+      <div class="col-md-6">
+        <div class="card text-white bg-primary card-metric">
+          <div class="card-body">
+            <h5 class="card-title">মোট বিক্রি পণ্য</h5>
+            <p class="card-text">
+              পিস: <span id="soldPcs">0</span><br>
+              কেজি: <span id="soldKg">0</span><br>
+              লিটার: <span id="soldLiter">0</span>
+            </p>
+          </div>
+        </div>
+      </div>
+      <!-- মোট বিক্রিত টাকা (মোট টাকা, ডিসকাউন্ট, রিসিভ) -->
+      <div class="col-md-6">
+        <div class="card text-white bg-success card-metric">
+          <div class="card-body">
+            <h5 class="card-title">মোট বিক্রিত টাকা</h5>
+            <p class="card-text">
+              মোট টাকা: <span id="totalMoney">৳0.00</span><br>
+              ডিসকাউন্ট: <span id="totalDiscount">৳0.00</span><br>
+              রিসিভ: <span id="finalTotal">৳0.00</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Row: স্টক সম্পর্কিত সূচক -->
+    <div class="row">
+      <!-- মোট স্টক -->
+      <div class="col-md-6">
+        <div class="card text-white bg-info card-metric">
+          <div class="card-body">
+            <h5 class="card-title">মোট স্টক</h5>
+            <p class="card-text" id="totalStock">0</p>
+          </div>
+        </div>
+      </div>
+      <!-- আউট অফ স্টক -->
+      <div class="col-md-6">
+        <div class="card text-white bg-secondary card-metric">
+          <div class="card-body">
+            <h5 class="card-title">আউট অফ স্টক</h5>
+            <p class="card-text" id="outOfStockCount">0</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Detailed Inventory Table -->
+    <div class="card shadow-sm">
+      <div class="card-header">
+        বিস্তারিত ইনভেন্টরি তালিকা
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>পণ্যের নাম</th>
+                <th>দাম (৳)</th>
+                <th>বর্তমান স্টক</th>
+                <th>বিক্রি (পরিমাণ)</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody">
+              <!-- এখানে Firebase ডেটা দিয়ে তালিকা তৈরি হবে -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+
+  <!-- Firebase এবং কাস্টম JS -->
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <!-- Firebase Configuration -->
+  <script>
+    // উদাহরণস্বরূপ Firebase configuration – আপনার প্রকৃত তথ্য দিয়ে প্রতিস্থাপন করুন
+    var firebaseConfig = {
+      apiKey: "AIzaSyAlCr-cphqHaAGN8SoDJ_aOnVBzJOyFLyo",
+      authDomain: "post-41a7c.firebaseapp.com",
+      projectId: "post-41a7c",
+      storageBucket: "post-41a7c.firebasestorage.app",
+      messagingSenderId: "266157241851",
+      appId: "1:266157241851:web:a36fe15cc1a46b01aac75e",
+      measurementId: "G-GQ1BKHFPMP"
+    };
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.firestore();
+  </script>
+  <!-- Custom JS for Inventory Dashboard -->
+  <script>
+    // সূচক ও ডেটা ভেরিয়েবল
+    let totalSoldPcs = 0;
+    let totalSoldKg = 0;
+    let totalSoldLiter = 0;
+    let grossTotal = 0;       // ইনভয়েসের মোট (মোট টাকা)
+    let totalDiscount = 0;    // মোট ডিসকাউন্ট
+    let finalTotal = 0;       // রিসিভ টাকা = মোট টাকা - ডিসকাউন্ট
+    let totalStock = 0;
+    let outOfStockCount = 0;
+    let productDetails = {};  // প্রতিটি প্রোডাক্টের ডেটা সংরক্ষণের জন্য
+    let productSoldMap = {};  // productId -> প্রোডাক্ট ভিত্তিক বিক্রিত পরিমাণ
+
+    // প্রোডাক্ট ডাটা লোড করা (স্টক ও অন্যান্য তথ্য)
+    function loadProducts() {
+      return db.collection('products').get().then(snapshot => {
+        snapshot.forEach(doc => {
+          const product = doc.data();
+          productDetails[doc.id] = product;
+          totalStock += parseFloat(product.stock);
+          if (parseFloat(product.stock) <= 0) {
+            outOfStockCount++;
+          }
+        });
+      });
+    }
+
+    // ইনভয়েস ডাটা লোড করা (টাকার সম্পর্কিত হিসাব)
+    function loadInvoices() {
+      return db.collection('invoices').get().then(snapshot => {
+        snapshot.forEach(doc => {
+          const invoice = doc.data();
+          grossTotal += parseFloat(invoice.total) || 0;
+          totalDiscount += parseFloat(invoice.discount) || 0;
+        });
+      });
+    }
+
+    // ফাইনাল (রিসিভ টাকা) হিসাব: মোট টাকা থেকে ডিসকাউন্ট বাদ
+    function computeFinalTotal() {
+      finalTotal = grossTotal - totalDiscount;
+    }
+
+    // প্রতিটি প্রোডাক্টের বিক্রি হওয়া পরিমাণ বের করা (invoices থেকে)
+    function computeProductSold() {
+      return db.collection('invoices').get().then(snapshot => {
+        snapshot.forEach(doc => {
+          const invoice = doc.data();
+          if (invoice.items && Array.isArray(invoice.items)) {
+            invoice.items.forEach(item => {
+              if (!productSoldMap[item.productId]) {
+                productSoldMap[item.productId] = 0;
+              }
+              productSoldMap[item.productId] += parseFloat(item.quantity);
+              // ইউনিট অনুযায়ী মোট বিক্রিত এমাউন্ট
+              if (item.unitType === 'pcs') {
+                totalSoldPcs += parseFloat(item.quantity);
+              } else if (item.unitType === 'kg') {
+                totalSoldKg += parseFloat(item.quantity);
+              } else if (item.unitType === 'liter') {
+                totalSoldLiter += parseFloat(item.quantity);
+              } else {
+                totalSoldPcs += parseFloat(item.quantity);
+              }
+            });
+          }
+        });
+      });
+    }
+
+    // স্টক এবং বিক্রি পরিমাণের সাথে ইউনিট যুক্ত করে ফরম্যাট করা
+    function formatWithUnit(value, unit) {
+      let unitText = "";
+      if (unit === "pcs") {
+        unitText = " পিস";
+      } else if (unit === "kg") {
+        unitText = " কেজি";
+      } else if (unit === "liter") {
+        unitText = " লিটার";
+      }
+      return value + unitText;
+    }
+
+    // ড্যাশবোর্ড এবং বিস্তারিত ইনভেন্টরি টেবিল আপডেট করা
+    function updateDashboard() {
+      // মেট্রিক আপডেট
+      document.getElementById('soldPcs').textContent = totalSoldPcs;
+      document.getElementById('soldKg').textContent = totalSoldKg;
+      document.getElementById('soldLiter').textContent = totalSoldLiter;
+      document.getElementById('totalMoney').textContent = '৳' + grossTotal.toFixed(2);
+      document.getElementById('totalDiscount').textContent = '৳' + totalDiscount.toFixed(2);
+      document.getElementById('finalTotal').textContent = '৳' + finalTotal.toFixed(2);
+      document.getElementById('totalStock').textContent = totalStock;
+      document.getElementById('outOfStockCount').textContent = outOfStockCount;
+      
+      // বিস্তারিত ইনভেন্টরি টেবিল
+      let tableRows = '';
+      for (let productId in productDetails) {
+        const prod = productDetails[productId];
+        // বর্তমান স্টক (ইউনিট সহ)
+        const stockDisplay = formatWithUnit(prod.stock, prod.unit);
+        // বিক্রি হওয়া পরিমাণ (ইউনিট সহ) – যদি কোনো বিক্রিত পরিমাণ থাকে
+        let soldQty = productSoldMap[productId] ? productSoldMap[productId] : 0;
+        const soldDisplay = formatWithUnit(soldQty, prod.unit);
+        tableRows += `
+          <tr>
+            <td>${prod.name}</td>
+            <td>৳${prod.price}</td>
+            <td>${stockDisplay}</td>
+            <td>${soldDisplay}</td>
+          </tr>
+        `;
+      }
+      document.getElementById('inventoryTableBody').innerHTML = tableRows;
+    }
+
+    // সকল ডাটা লোড করে ড্যাশবোর্ড আপডেট করা
+    function loadInventoryData() {
+      Promise.all([loadProducts(), loadInvoices(), computeProductSold()])
+        .then(() => {
+          computeFinalTotal();
+          updateDashboard();
+        })
+        .catch(error => {
+          console.error("ইনভেন্টরি ডাটা লোড করতে সমস্যা:", error);
+        });
+    }
+
+    loadInventoryData();
+  </script>
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
