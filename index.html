@@ -61,6 +61,21 @@
       transform: translateX(-50%);
       z-index: 1100;
     }
+    /* Print Styles: Only the Invoice Memo (invoiceViewContent) will be visible when printing */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #invoiceViewContent, #invoiceViewContent * {
+        visibility: visible;
+      }
+      #invoiceViewContent {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -256,7 +271,7 @@
           </div>
         </div>
         <div class="modal-footer">
-          <!-- Sales Button: Sales সফল হলে, Invoice Creation Modal বন্ধ করে Invoice View Modal ওপেন হবে -->
+          <!-- Sales Button: On click, invoice creation modal will close and Invoice View Modal will open -->
           <button id="salesButton" class="btn btn-secondary">সেলস</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">বন্ধ করুন</button>
         </div>
@@ -300,7 +315,7 @@
           </div>
           <button id="searchInvoiceBtn" class="btn btn-info mb-3">খুঁজুন</button>
           <div id="invoiceSearchResult">
-            <!-- এখানে ইনভয়েসের ফলাফল দেখানো হবে, যা Invoice View Modal এর মতো হবে -->
+            <!-- এখানে ইনভয়েসের ফলাফল দেখানো হবে, যা Invoice View Modal এর মত হবে -->
           </div>
         </div>
         <div class="modal-footer">
@@ -318,7 +333,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   <script>
-    // Firebase Configuration
+    /***********************
+     Firebase Configuration
+    ***********************/
     const firebaseConfig = {
       apiKey: "AIzaSyAlCr-cphqHaAGN8SoDJ_aOnVBzJOyFLyo",
       authDomain: "post-41a7c.firebaseapp.com",
@@ -330,7 +347,9 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // Toast Message Function (with type)
+    /***********************
+     Toast Message Function (with type)
+    ***********************/
     function showToast(message, type = 'info') {
       const toastHeader = document.getElementById('toastHeader');
       const toastTitle = document.getElementById('toastTitle');
@@ -354,7 +373,9 @@
       toast.show();
     }
 
-    // Theme Toggle
+    /***********************
+     Theme Toggle
+    ***********************/
     document.getElementById('themeToggle').addEventListener('click', function() {
       document.body.classList.toggle('dark-mode');
       const icon = this.querySelector('i');
@@ -362,7 +383,9 @@
       icon.classList.toggle('fa-sun');
     });
 
-    // Add Product with Suggestion
+    /***********************
+     Add Product Functionality with Suggestion
+    ***********************/
     document.getElementById('prodName').addEventListener('input', function() {
       const query = this.value.trim();
       const suggestionBox = document.getElementById('addProductSuggestion');
@@ -423,7 +446,9 @@
       });
     });
 
-    // Fetch and Display Products (Realtime)
+    /***********************
+     Fetch and Display Products (Realtime)
+    ***********************/
     let allProducts = [];
     function fetchProducts() {
       db.collection('products').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
@@ -470,7 +495,9 @@
     document.getElementById('searchInput').addEventListener('input', applyFilters);
     document.getElementById('stockFilter').addEventListener('change', applyFilters);
 
-    // Add to Invoice Cart Functionality
+    /***********************
+     Add to Invoice Cart Functionality
+    ***********************/
     let invoiceCart = [];
     function addToInvoice(id, name, unitType, price) {
       const existing = invoiceCart.find(item => item.id === id);
@@ -482,13 +509,19 @@
       showToast(`${name} কার্টে যোগ হয়েছে!`, 'success');
     }
 
-    // Get Available Stock for a Product
+    /***********************
+     Get Available Stock for a Product
+    ***********************/
     function getStockForProduct(id) {
       const prod = allProducts.find(p => p.id === id);
       return prod ? prod.stock : 0;
     }
 
-    // Invoice Creation Modal Functionality
+    /***********************
+     Invoice Creation Modal Functionality
+       - Includes Customer Name, Mobile, Discount.
+       - Validates quantities with unit conversion.
+    ***********************/
     document.getElementById('invoiceModal').addEventListener('show.bs.modal', function(event) {
       if (invoiceCart.length === 0) {
         showToast("কার্টে কোনো পণ্য নেই।", 'warning');
@@ -601,7 +634,7 @@
      Sales Button Functionality
        - Validate quantities.
        - Determine new memoNo from Firebase invoices.
-       - Update stock and save invoice data (with customer name, mobile, discount, etc.).
+       - Update stock and save invoice data (with customer details & discount).
        - Then close Invoice Creation Modal and open Invoice View Modal.
     ***********************/
     document.getElementById('salesButton').addEventListener('click', function() {
@@ -698,7 +731,8 @@
 
     /***********************
      Open Invoice View Modal and Display Invoice Details
-       - For each item, display quantity with appropriate unit (kg, liter, pcs) and calculate total.
+       - Display each item's name, price, quantity (with proper unit), and total.
+       - Also show overall total, discount, final total, and Authority Signature area.
     ***********************/
     function openInvoiceViewModal(invoiceId) {
       db.collection('invoices').doc(invoiceId).get().then(doc => {
