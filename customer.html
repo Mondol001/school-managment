@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>কাস্টমার তালিকা - Mondol Shop</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding: 20px;
+      background-color: #f8f9fa;
+    }
+    .container {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Back Button -->
+    <button class="btn btn-secondary mb-3" onclick="window.history.back()">ফিরে যান</button>
+    
+    <h1 class="mb-4">কাস্টমার তালিকা</h1>
+    
+    <!-- Total Customer Count Display -->
+    <div class="mb-3">
+      <h5>মোট কাস্টমার সংখ্যা: <span id="totalCustomerCount">0</span></h5>
+    </div>
+    
+    <!-- Customer Table -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped">
+        <thead>
+          <tr>
+            <th>কাস্টমারের নাম</th>
+            <th>মোবাইল নাম্বার</th>
+          </tr>
+        </thead>
+        <tbody id="customerTableBody">
+          <!-- Firebase থেকে ডেটা লোড হবে -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <!-- Firebase and Custom JS -->
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <!-- Firebase Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <!-- Firebase Configuration -->
+  <script>
+    // উদাহরণস্বরূপ Firebase configuration – আপনার প্রকৃত তথ্য দিয়ে প্রতিস্থাপন করুন
+    var firebaseConfig = {
+      apiKey: "AIzaSyAlCr-cphqHaAGN8SoDJ_aOnVBzJOyFLyo",
+      authDomain: "post-41a7c.firebaseapp.com",
+      projectId: "post-41a7c",
+      storageBucket: "post-41a7c.firebasestorage.app",
+      messagingSenderId: "266157241851",
+      appId: "1:266157241851:web:a36fe15cc1a46b01aac75e",
+      measurementId: "G-GQ1BKHFPMP"
+    };
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.firestore();
+  </script>
+  <!-- Custom JS to load customer data from invoices -->
+  <script>
+    function loadInvoiceCustomers() {
+      db.collection('invoices').get().then((snapshot) => {
+        // uniqueCustomers অবজেক্টে ইউনিক কাস্টমার (নাম ও মোবাইল) সংরক্ষণ করা হবে
+        let uniqueCustomers = {};
+        snapshot.forEach((doc) => {
+          const invoice = doc.data();
+          const name = invoice.customerName || "নাম নেই";
+          const mobile = invoice.customerMobile || "মোবাইল নেই";
+          // ইউনিক কী হিসেবে নাম এবং মোবাইল ব্যবহার করা হবে
+          const key = name + " - " + mobile;
+          uniqueCustomers[key] = { name, mobile };
+        });
+        // মোট ইউনিক কাস্টমার সংখ্যা আপডেট করা
+        document.getElementById('totalCustomerCount').textContent = Object.keys(uniqueCustomers).length;
+        // টেবিলের HTML তৈরী করা
+        let tableRows = "";
+        for (let key in uniqueCustomers) {
+          tableRows += `
+            <tr>
+              <td>${uniqueCustomers[key].name}</td>
+              <td>${uniqueCustomers[key].mobile}</td>
+            </tr>
+          `;
+        }
+        document.getElementById('customerTableBody').innerHTML = tableRows;
+      }).catch((error) => {
+        console.error("Invoice থেকে কাস্টমার ডেটা লোড করতে সমস্যা:", error);
+      });
+    }
+    
+    loadInvoiceCustomers();
+  </script>
+  <!-- Bootstrap JS Bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
