@@ -126,8 +126,10 @@
         productsSnapshot.forEach(prodDoc => {
           productDetails[prodDoc.id] = prodDoc.data();
         });
-        // ২) Invoices লোড
-        const invoicesSnapshot = await db.collection("invoices").get();
+        // ২) Invoices লোড (মেমো নং অনুযায়ী ডেসেন্ডিং: বড় থেকে ছোট)
+        const invoicesSnapshot = await db.collection("invoices")
+                                         .orderBy("memoNo", "desc")
+                                         .get();
         const customers = {};
         invoicesSnapshot.forEach(doc => {
           const data = doc.data();
@@ -154,10 +156,10 @@
           const items = data.items || [];
           let invoiceTotal = 0;
           items.forEach(item => {
-            const prod = productDetails[item.productId] || {};
-            const price = prod.price || 0;
+            // এখন আমরা invoice এ সেভ করা productName এবং price ব্যবহার করব, না থাকলে productDetails থেকে দেখবো
+            const prodPrice = (item.price != null) ? item.price : (productDetails[item.productId]?.price || 0);
             const qty = item.quantity || 0;
-            invoiceTotal += price * qty;
+            invoiceTotal += prodPrice * qty;
           });
           // ডিসকাউন্ট
           const discount = data.discount || 0;
@@ -168,7 +170,7 @@
           customers[customerMobile].invoices.push({
             memoNumber: data.memoNo || "মেমো নেই",
             date: invoiceDate,
-            items: items,
+            items: data.items || [],
             invoiceTotal: invoiceTotal,
             discount: discount,
             finalTotal: finalTotal
@@ -196,9 +198,9 @@
             itemsHtml = `<h6>ক্রয়ের আইটেমসমূহ:</h6>
               <ul class="product-list">
                 ${invoice.items.map(item => {
-                  const prod = productDetails[item.productId] || {};
-                  const prodName = prod.name || "নাম নেই";
-                  const prodPrice = prod.price || 0;
+                  // এখানে invoice এ সেভ করা productName এবং price ব্যবহার করা হচ্ছে
+                  const prodName = item.productName || (productDetails[item.productId]?.name || "নাম নেই");
+                  const prodPrice = (item.price != null) ? item.price : (productDetails[item.productId]?.price || 0);
                   const qty = item.quantity || 0;
                   const totalPrice = prodPrice * qty;
                   return `<li>
@@ -212,9 +214,8 @@
           }
           invoiceDetails += `
             <div class="card mb-2">
-              <div class="card-header"><strong>মেমো নং:</strong> ${invoice.memoNumber}</div>
+              <div class="card-header"><strong>মেমো নং:</strong> ${invoice.memoNumber} - ${invoice.date}</div>
               <div class="card-body">
-                <p><strong>ইনভয়েস তারিখ:</strong> ${invoice.date}</p>
                 ${itemsHtml}
                 <p><strong>মোট:</strong> ${invoice.invoiceTotal} টাকা</p>
                 <p><strong>ডিসকাউন্ট:</strong> ${invoice.discount} টাকা</p>
