@@ -269,10 +269,11 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="বন্ধ"></button>
         </div>
         <div class="modal-body">
-          <!-- Customer Details -->
+          <!-- Customer Details with Suggestion -->
           <div class="mb-3">
             <label for="customerName" class="form-label">কাস্টমারের নাম</label>
             <input type="text" id="customerName" class="form-control" placeholder="কাস্টমারের নাম লিখুন">
+            <div id="customerSuggestion" class="list-group" style="display:none;"></div>
           </div>
           <div class="mb-3">
             <label for="customerMobile" class="form-label">মোবাইল নম্বর</label>
@@ -877,6 +878,59 @@
     });
     document.getElementById('printInvoiceSearch').addEventListener('click', function() {
       window.print();
+    });
+
+    /***********************
+     Customer Suggestion for Invoice Creation Modal
+     - টাইপ করলে invoices কালেকশন থেকে কাস্টমারের নাম ও মোবাইল নম্বর নিয়ে সাজেস্ট করবে
+    ***********************/
+    document.getElementById('customerName').addEventListener('input', function() {
+      const query = this.value.trim();
+      const suggestionBox = document.getElementById('customerSuggestion');
+      if(query.length === 0) {
+        suggestionBox.style.display = 'none';
+        suggestionBox.innerHTML = '';
+        return;
+      }
+      db.collection('invoices')
+        .orderBy('customerName')
+        .startAt(query)
+        .endAt(query + '\uf8ff')
+        .get()
+        .then(snapshot => {
+          let suggestionsHTML = "";
+          const seen = {};
+          snapshot.forEach(doc => {
+            const inv = doc.data();
+            if (!seen[inv.customerName]) {
+              seen[inv.customerName] = true;
+              suggestionsHTML += `<button type="button" class="list-group-item list-group-item-action" 
+                                    data-name="${inv.customerName}" 
+                                    data-mobile="${inv.customerMobile}">
+                                      ${inv.customerName} (${inv.customerMobile})
+                                  </button>`;
+            }
+          });
+          if (suggestionsHTML) {
+            suggestionBox.innerHTML = suggestionsHTML;
+            suggestionBox.style.display = 'block';
+          } else {
+            suggestionBox.style.display = 'none';
+            suggestionBox.innerHTML = '';
+          }
+        })
+        .catch(error => {
+          console.error("কাস্টমার সাজেস্টশন আনতে সমস্যা:", error);
+        });
+    });
+    document.getElementById('customerSuggestion').addEventListener('click', function(e) {
+      if (e.target && e.target.matches('button')) {
+        const customerName = e.target.getAttribute('data-name');
+        const customerMobile = e.target.getAttribute('data-mobile');
+        document.getElementById('customerName').value = customerName;
+        document.getElementById('customerMobile').value = customerMobile;
+        this.style.display = 'none';
+      }
     });
 
     /***********************
