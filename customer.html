@@ -11,11 +11,58 @@
       background-color: #f8f9fa;
       padding: 20px;
     }
+    /* Header Bar */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .back-btn {
+      font-size: 16px;
+    }
+    .empty-space {
+      flex: 1;
+    }
+    .search-icon {
+      font-size: 24px;
+      cursor: pointer;
+    }
+    /* Title */
+    .title {
+      text-align: center;
+      margin-bottom: 15px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+    /* Search Container with Animation */
+    .search-container {
+      text-align: center;
+      overflow: hidden;
+      max-height: 0;
+      opacity: 0;
+      transition: max-height 0.5s ease, opacity 0.5s ease;
+      margin-bottom: 15px;
+    }
+    .search-container.active {
+      max-height: 60px;
+      opacity: 1;
+    }
+    .search-box {
+      width: 100%;
+      max-width: 400px;
+      height: 40px;
+      padding: 5px 15px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 16px;
+    }
+    /* Invoice Card */
     .invoice-card {
       border: 1px solid #ddd;
       border-radius: 8px;
-      margin-bottom: 10px;
-      padding: 10px;
+      margin-bottom: 15px;
+      padding: 15px;
       background-color: #fff;
     }
     .product-list {
@@ -32,16 +79,30 @@
 </head>
 <body>
   <div class="container">
-    <h2 class="mb-4 text-center">📜 কাস্টমার ইনভয়েস তালিকা</h2>
+    <!-- Header Bar: Back Button (বাম), Empty (মাঝে), Search Icon (ডান) -->
+    <div class="header-bar">
+      <button class="btn btn-secondary back-btn" onclick="history.back()">⬅️ Back</button>
+      <div class="empty-space"></div>
+      <span class="search-icon" onclick="toggleSearch()">🔍</span>
+    </div>
+
+    <!-- Title -->
+    <div class="title">📜 কাস্টমার ইনভয়েস তালিকা</div>
+
+    <!-- Search Box (এনিমেশনসহ, শিরোনামের নিচে) -->
+    <div class="search-container" id="searchContainer">
+      <input type="text" id="searchInput" class="search-box" placeholder="কাস্টমারের নাম/মোবাইল..." onkeyup="searchCustomers()">
+    </div>
+
+    <!-- Customers Container -->
     <div id="customersContainer"></div>
   </div>
 
   <!-- Firebase Compat SDK (v9) -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
   <script>
-    // আপনার Firebase কনফিগারেশন (Firebase Console থেকে নেওয়া তথ্য)
+    // Firebase কনফিগারেশন (Firebase Console থেকে নেওয়া তথ্য)
     const firebaseConfig = {
       apiKey: "AIzaSyAlCr-cphqHaAGN8SoDJ_aOnVBzJOyFLyo",
       authDomain: "post-41a7c.firebaseapp.com",
@@ -51,163 +112,169 @@
       appId: "1:266157241851:web:a36fe15cc1a46b01aac75e",
       measurementId: "G-GQ1BKHFPMP"
     };
-
-    // Firebase ইনিশিয়ালাইজ এবং Firestore রেফারেন্স
-    const app = firebase.initializeApp(firebaseConfig);
+    firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    // এখানে প্রোডাক্টের ডেটা সংরক্ষণ করা হবে (ডকুমেন্ট আইডি অনুযায়ী)
-    const productDetails = {};
+    let customersData = {}; // সার্চ ও রেন্ডারের জন্য ডেটা সংরক্ষণ
+    const productDetails = {}; // Products কালেকশন থেকে প্রোডাক্টের তথ্য
 
-    // ডেটা লোডের প্রধান ফাংশন: প্রথমে "products" তারপর "invoices" কালেকশন থেকে ডেটা নিয়ে আসা
-    function loadData() {
-      // ১) "products" কালেকশন থেকে প্রোডাক্ট লোড
-      db.collection("products").get()
-        .then(productSnapshot => {
-          productSnapshot.forEach(prodDoc => {
-            productDetails[prodDoc.id] = prodDoc.data();
-          });
-          // ২) এরপর "invoices" কালেকশন থেকে ইনভয়েস লোড
-          return db.collection("invoices").get();
-        })
-        .then(invoiceSnapshot => {
-          const customers = {};
-
-          invoiceSnapshot.forEach(doc => {
-            const data = doc.data();
-
-            // মেমো নম্বর
-            const memoNumber = data.memoNo || "মেমো নেই";
-
-            // তারিখ (timestamp ফিল্ড থেকে)
-            let invoiceDate = "তারিখ নেই";
-            if (data.timestamp && data.timestamp.toDate) {
-              const dateObj = data.timestamp.toDate();
-              invoiceDate = dateObj.toLocaleDateString("bn-BD", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric"
-              });
-            }
-
-            // গ্রাহকের নাম ও মোবাইল নম্বর
-            const customerName = data.customerName || "নাম নেই";
-            const customerMobile = data.customerMobile || "মোবাইল নেই";
-
-            // যদি গ্রাহক আগে থেকে না থাকে, তাহলে একটি নতুন গ্রাহক অবজেক্ট তৈরি করি
-            if (!customers[customerMobile]) {
-              customers[customerMobile] = {
-                name: customerName,
-                mobile: customerMobile,
-                invoices: [],
-                customerTotal: 0  // এই গ্রাহকের সকল ইনভয়েসের finalTotal যোগফল
-              };
-            }
-
-            // ইনভয়েসের আইটেম (items অ্যারে)
-            const items = data.items || [];
-
-            // প্রতিটি ইনভয়েসের জন্য মোট হিসাব: প্রতিটি আইটেমের (দাম * পরিমাণ) যোগফল
-            let invoiceTotal = 0;
-            items.forEach(item => {
-              const product = productDetails[item.productId] || {};
-              const price = product.price || 0;
-              const qty = item.quantity || 0;
-              invoiceTotal += price * qty;
-            });
-
-            // ডিসকাউন্ট: যদি থাকে, নইলে 0
-            const discount = data.discount || 0;
-            // ইনভয়েসের ফাইনাল টোটাল (ডিসকাউন্ট বাদ দিয়ে)
-            const finalTotal = invoiceTotal - discount;
-
-            // গ্রাহকের মোট ক্রয়ের পরিমাণে এই ইনভয়েস যোগ করি
-            customers[customerMobile].customerTotal += finalTotal;
-
-            // গ্রাহকের ইনভয়েস তালিকায় এই ইনভয়েস যোগ করা
-            customers[customerMobile].invoices.push({
-              memoNumber,
-              date: invoiceDate,
-              items,
-              invoiceTotal,
-              discount,
-              finalTotal
-            });
-          });
-
-          // সব ডেটা প্রস্তুত, HTML এ রেন্ডার করি
-          renderCustomers(customers);
-        })
-        .catch(error => {
-          console.error("ডেটা লোড করতে সমস্যা:", error);
-          document.getElementById("customersContainer").innerHTML = `<p class="text-danger">ডাটা লোড করতে সমস্যা হয়েছে!</p>`;
+    // Firestore থেকে ডেটা লোড: প্রথমে products, তারপর invoices
+    async function loadData() {
+      try {
+        // ১) Products লোড
+        const productsSnapshot = await db.collection("products").get();
+        productsSnapshot.forEach(prodDoc => {
+          productDetails[prodDoc.id] = prodDoc.data();
         });
+        // ২) Invoices লোড
+        const invoicesSnapshot = await db.collection("invoices").get();
+        const customers = {};
+        invoicesSnapshot.forEach(doc => {
+          const data = doc.data();
+          const customerName = data.customerName || "নাম নেই";
+          const customerMobile = data.customerMobile || "মোবাইল নেই";
+          if (!customers[customerMobile]) {
+            customers[customerMobile] = {
+              name: customerName,
+              mobile: customerMobile,
+              invoices: [],
+              customerTotal: 0
+            };
+          }
+          // তারিখ: timestamp ফিল্ড থেকে (toDate() মেথড থাকলে)
+          let invoiceDate = "তারিখ নেই";
+          if (data.timestamp && data.timestamp.toDate) {
+            invoiceDate = data.timestamp.toDate().toLocaleDateString("bn-BD", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric"
+            });
+          }
+          // ইনভয়েসের আইটেম
+          const items = data.items || [];
+          let invoiceTotal = 0;
+          items.forEach(item => {
+            const prod = productDetails[item.productId] || {};
+            const price = prod.price || 0;
+            const qty = item.quantity || 0;
+            invoiceTotal += price * qty;
+          });
+          // ডিসকাউন্ট
+          const discount = data.discount || 0;
+          let finalTotal = data.finalTotal;
+          if (finalTotal == null) {
+            finalTotal = invoiceTotal - discount;
+          }
+          customers[customerMobile].invoices.push({
+            memoNumber: data.memoNo || "মেমো নেই",
+            date: invoiceDate,
+            items: items,
+            invoiceTotal: invoiceTotal,
+            discount: discount,
+            finalTotal: finalTotal
+          });
+          customers[customerMobile].customerTotal += finalTotal;
+        });
+        customersData = customers;
+        renderCustomers(customers);
+      } catch (error) {
+        console.error("ডেটা লোড করতে সমস্যা:", error);
+        document.getElementById("customersContainer").innerHTML = `<p class="text-danger">ডাটা লোড করতে সমস্যা হয়েছে!</p>`;
+      }
     }
 
-    // গ্রাহক ও ইনভয়েস HTML রেন্ডার করার ফাংশন
+    // গ্রাহক ও ইনভয়েস রেন্ডার করার ফাংশন
     function renderCustomers(customers) {
       const container = document.getElementById("customersContainer");
       let html = "";
-
       Object.values(customers).forEach((customer, index) => {
         const customerId = `customer${index}`;
-
+        let invoiceDetails = "";
+        customer.invoices.forEach(invoice => {
+          let itemsHtml = "";
+          if (invoice.items.length > 0) {
+            itemsHtml = `<h6>ক্রয়ের আইটেমসমূহ:</h6>
+              <ul class="product-list">
+                ${invoice.items.map(item => {
+                  const prod = productDetails[item.productId] || {};
+                  const prodName = prod.name || "নাম নেই";
+                  const prodPrice = prod.price || 0;
+                  const qty = item.quantity || 0;
+                  const totalPrice = prodPrice * qty;
+                  return `<li>
+                            <strong>প্রোডাক্ট:</strong> ${prodName} |
+                            <strong>পরিমাণ:</strong> ${qty} |
+                            <strong>একক মূল্য:</strong> ${prodPrice} টাকা |
+                            <strong>মোট:</strong> ${totalPrice} টাকা
+                          </li>`;
+                }).join('')}
+              </ul>`;
+          }
+          invoiceDetails += `
+            <div class="card mb-2">
+              <div class="card-header"><strong>মেমো নং:</strong> ${invoice.memoNumber}</div>
+              <div class="card-body">
+                <p><strong>ইনভয়েস তারিখ:</strong> ${invoice.date}</p>
+                ${itemsHtml}
+                <p><strong>মোট:</strong> ${invoice.invoiceTotal} টাকা</p>
+                <p><strong>ডিসকাউন্ট:</strong> ${invoice.discount} টাকা</p>
+                <p><strong>সর্বশেষ টোটাল:</strong> ${invoice.finalTotal} টাকা</p>
+              </div>
+            </div>
+          `;
+        });
         html += `
           <div class="card invoice-card">
             <div class="card-header">
               <h5 class="mb-0">${customer.name}</h5>
-              <p class="mb-1"><strong>মোবাইল:</strong> ${customer.mobile}</p>
-              <p class="mb-1"><strong>সর্বমোট ক্রয়:</strong> ${customer.customerTotal} টাকা</p>
+              <p><strong>মোবাইল:</strong> ${customer.mobile}</p>
+              <p><strong>সর্বমোট ক্রয়:</strong> ${customer.customerTotal} টাকা</p>
               <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#${customerId}">
                 বিস্তারিত দেখুন
               </button>
             </div>
             <div id="${customerId}" class="collapse">
               <div class="card-body">
-                ${customer.invoices.map(invoice => `
-                  <div class="card mb-2">
-                    <div class="card-header">
-                      <strong>মেমো নং:</strong> ${invoice.memoNumber}
-                    </div>
-                    <div class="card-body">
-                      <p><strong>ইনভয়েস তারিখ:</strong> ${invoice.date}</p>
-                      <h6>ক্রয়ের আইটেমসমূহ:</h6>
-                      <ul class="product-list">
-                        ${invoice.items.map(item => {
-                          const product = productDetails[item.productId] || {};
-                          const productName = product.name || "নাম নেই";
-                          const productPrice = product.price || 0;
-                          const quantity = item.quantity || 0;
-                          const totalPrice = productPrice * quantity;
-                          return `
-                            <li>
-                              <strong>প্রোডাক্ট:</strong> ${productName} |
-                              <strong>পরিমাণ:</strong> ${quantity} |
-                              <strong>একক মূল্য:</strong> ${productPrice} টাকা |
-                              <strong>মোট:</strong> ${totalPrice} টাকা
-                            </li>
-                          `;
-                        }).join('')}
-                      </ul>
-                      <p><strong>মোট:</strong> ${invoice.invoiceTotal} টাকা</p>
-                      <p><strong>ডিসকাউন্ট:</strong> ${invoice.discount} টাকা</p>
-                      <p><strong>সর্বশেষ টোটাল:</strong> ${invoice.finalTotal} টাকা</p>
-                    </div>
-                  </div>
-                `).join('')}
+                ${invoiceDetails}
               </div>
             </div>
           </div>
         `;
       });
-
       container.innerHTML = html;
     }
 
-    // পেজ লোড হলে ডেটা লোড করুন
+    // সার্চ বক্স টগল ফাংশন
+    function toggleSearch() {
+      const searchContainer = document.getElementById("searchContainer");
+      const searchInput = document.getElementById("searchInput");
+      if (searchContainer.classList.contains("active")) {
+        searchContainer.classList.remove("active");
+        searchInput.value = "";
+        renderCustomers(customersData);
+      } else {
+        searchContainer.classList.add("active");
+        setTimeout(() => {
+          searchInput.focus();
+        }, 300);
+      }
+    }
+
+    // রিয়েল-টাইম সার্চ ফাংশন (নাম বা মোবাইল অনুযায়ী)
+    function searchCustomers() {
+      const query = document.getElementById("searchInput").value.toLowerCase();
+      const filtered = {};
+      Object.keys(customersData).forEach(key => {
+        const customer = customersData[key];
+        if (customer.name.toLowerCase().includes(query) || customer.mobile.includes(query)) {
+          filtered[key] = customer;
+        }
+      });
+      renderCustomers(filtered);
+    }
+
     document.addEventListener("DOMContentLoaded", loadData);
   </script>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
