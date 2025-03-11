@@ -2,57 +2,47 @@
 <html lang="bn">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>কাস্টমার তালিকা - Mondol Shop</title>
-  <!-- Bootstrap CSS -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>কাস্টমার ইনভয়েস তালিকা</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     body {
-      padding: 20px;
+      font-family: 'Arial', sans-serif;
       background-color: #f8f9fa;
+      padding: 20px;
     }
-    .container {
-      margin-top: 20px;
+    .invoice-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      padding: 10px;
+      background-color: #fff;
+    }
+    .product-list {
+      list-style-type: none;
+      padding-left: 0;
+    }
+    .product-list li {
+      background: #eef;
+      margin-bottom: 5px;
+      padding: 5px;
+      border-radius: 5px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <!-- Back Button -->
-    <button class="btn btn-secondary mb-3" onclick="window.history.back()">ফিরে যান</button>
-    
-    <h1 class="mb-4">কাস্টমার তালিকা</h1>
-    
-    <!-- Total Customer Count Display -->
-    <div class="mb-3">
-      <h5>মোট কাস্টমার সংখ্যা: <span id="totalCustomerCount">0</span></h5>
-    </div>
-    
-    <!-- Customer Table -->
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped">
-        <thead>
-          <tr>
-            <th>কাস্টমারের নাম</th>
-            <th>মোবাইল নাম্বার</th>
-          </tr>
-        </thead>
-        <tbody id="customerTableBody">
-          <!-- Firebase থেকে ডেটা লোড হবে -->
-        </tbody>
-      </table>
-    </div>
+    <h2 class="mb-4 text-center">📜 কাস্টমার ইনভয়েস তালিকা</h2>
+    <div id="customersContainer"></div>
   </div>
-  
-  <!-- Firebase and Custom JS -->
-  <!-- Firebase App (the core Firebase SDK) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <!-- Firebase Firestore -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <!-- Firebase Configuration -->
+
+  <!-- Firebase Compat SDK (v9) -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+
   <script>
-    // উদাহরণস্বরূপ Firebase configuration – আপনার প্রকৃত তথ্য দিয়ে প্রতিস্থাপন করুন
-    var firebaseConfig = {
+    // আপনার Firebase কনফিগারেশন (Firebase Console থেকে নেওয়া তথ্য)
+    const firebaseConfig = {
       apiKey: "AIzaSyAlCr-cphqHaAGN8SoDJ_aOnVBzJOyFLyo",
       authDomain: "post-41a7c.firebaseapp.com",
       projectId: "post-41a7c",
@@ -61,45 +51,163 @@
       appId: "1:266157241851:web:a36fe15cc1a46b01aac75e",
       measurementId: "G-GQ1BKHFPMP"
     };
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    var db = firebase.firestore();
-  </script>
-  <!-- Custom JS to load customer data from invoices -->
-  <script>
-    function loadInvoiceCustomers() {
-      db.collection('invoices').get().then((snapshot) => {
-        // uniqueCustomers অবজেক্টে ইউনিক কাস্টমার (নাম ও মোবাইল) সংরক্ষণ করা হবে
-        let uniqueCustomers = {};
-        snapshot.forEach((doc) => {
-          const invoice = doc.data();
-          const name = invoice.customerName || "নাম নেই";
-          const mobile = invoice.customerMobile || "মোবাইল নেই";
-          // ইউনিক কী হিসেবে নাম এবং মোবাইল ব্যবহার করা হবে
-          const key = name + " - " + mobile;
-          uniqueCustomers[key] = { name, mobile };
+
+    // Firebase ইনিশিয়ালাইজ এবং Firestore রেফারেন্স
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // এখানে প্রোডাক্টের ডেটা সংরক্ষণ করা হবে (ডকুমেন্ট আইডি অনুযায়ী)
+    const productDetails = {};
+
+    // ডেটা লোডের প্রধান ফাংশন: প্রথমে "products" তারপর "invoices" কালেকশন থেকে ডেটা নিয়ে আসা
+    function loadData() {
+      // ১) "products" কালেকশন থেকে প্রোডাক্ট লোড
+      db.collection("products").get()
+        .then(productSnapshot => {
+          productSnapshot.forEach(prodDoc => {
+            productDetails[prodDoc.id] = prodDoc.data();
+          });
+          // ২) এরপর "invoices" কালেকশন থেকে ইনভয়েস লোড
+          return db.collection("invoices").get();
+        })
+        .then(invoiceSnapshot => {
+          const customers = {};
+
+          invoiceSnapshot.forEach(doc => {
+            const data = doc.data();
+
+            // মেমো নম্বর
+            const memoNumber = data.memoNo || "মেমো নেই";
+
+            // তারিখ (timestamp ফিল্ড থেকে)
+            let invoiceDate = "তারিখ নেই";
+            if (data.timestamp && data.timestamp.toDate) {
+              const dateObj = data.timestamp.toDate();
+              invoiceDate = dateObj.toLocaleDateString("bn-BD", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric"
+              });
+            }
+
+            // গ্রাহকের নাম ও মোবাইল নম্বর
+            const customerName = data.customerName || "নাম নেই";
+            const customerMobile = data.customerMobile || "মোবাইল নেই";
+
+            // যদি গ্রাহক আগে থেকে না থাকে, তাহলে একটি নতুন গ্রাহক অবজেক্ট তৈরি করি
+            if (!customers[customerMobile]) {
+              customers[customerMobile] = {
+                name: customerName,
+                mobile: customerMobile,
+                invoices: [],
+                customerTotal: 0  // এই গ্রাহকের সকল ইনভয়েসের finalTotal যোগফল
+              };
+            }
+
+            // ইনভয়েসের আইটেম (items অ্যারে)
+            const items = data.items || [];
+
+            // প্রতিটি ইনভয়েসের জন্য মোট হিসাব: প্রতিটি আইটেমের (দাম * পরিমাণ) যোগফল
+            let invoiceTotal = 0;
+            items.forEach(item => {
+              const product = productDetails[item.productId] || {};
+              const price = product.price || 0;
+              const qty = item.quantity || 0;
+              invoiceTotal += price * qty;
+            });
+
+            // ডিসকাউন্ট: যদি থাকে, নইলে 0
+            const discount = data.discount || 0;
+            // ইনভয়েসের ফাইনাল টোটাল (ডিসকাউন্ট বাদ দিয়ে)
+            const finalTotal = invoiceTotal - discount;
+
+            // গ্রাহকের মোট ক্রয়ের পরিমাণে এই ইনভয়েস যোগ করি
+            customers[customerMobile].customerTotal += finalTotal;
+
+            // গ্রাহকের ইনভয়েস তালিকায় এই ইনভয়েস যোগ করা
+            customers[customerMobile].invoices.push({
+              memoNumber,
+              date: invoiceDate,
+              items,
+              invoiceTotal,
+              discount,
+              finalTotal
+            });
+          });
+
+          // সব ডেটা প্রস্তুত, HTML এ রেন্ডার করি
+          renderCustomers(customers);
+        })
+        .catch(error => {
+          console.error("ডেটা লোড করতে সমস্যা:", error);
+          document.getElementById("customersContainer").innerHTML = `<p class="text-danger">ডাটা লোড করতে সমস্যা হয়েছে!</p>`;
         });
-        // মোট ইউনিক কাস্টমার সংখ্যা আপডেট করা
-        document.getElementById('totalCustomerCount').textContent = Object.keys(uniqueCustomers).length;
-        // টেবিলের HTML তৈরী করা
-        let tableRows = "";
-        for (let key in uniqueCustomers) {
-          tableRows += `
-            <tr>
-              <td>${uniqueCustomers[key].name}</td>
-              <td>${uniqueCustomers[key].mobile}</td>
-            </tr>
-          `;
-        }
-        document.getElementById('customerTableBody').innerHTML = tableRows;
-      }).catch((error) => {
-        console.error("Invoice থেকে কাস্টমার ডেটা লোড করতে সমস্যা:", error);
-      });
     }
-    
-    loadInvoiceCustomers();
+
+    // গ্রাহক ও ইনভয়েস HTML রেন্ডার করার ফাংশন
+    function renderCustomers(customers) {
+      const container = document.getElementById("customersContainer");
+      let html = "";
+
+      Object.values(customers).forEach((customer, index) => {
+        const customerId = `customer${index}`;
+
+        html += `
+          <div class="card invoice-card">
+            <div class="card-header">
+              <h5 class="mb-0">${customer.name}</h5>
+              <p class="mb-1"><strong>মোবাইল:</strong> ${customer.mobile}</p>
+              <p class="mb-1"><strong>সর্বমোট ক্রয়:</strong> ${customer.customerTotal} টাকা</p>
+              <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#${customerId}">
+                বিস্তারিত দেখুন
+              </button>
+            </div>
+            <div id="${customerId}" class="collapse">
+              <div class="card-body">
+                ${customer.invoices.map(invoice => `
+                  <div class="card mb-2">
+                    <div class="card-header">
+                      <strong>মেমো নং:</strong> ${invoice.memoNumber}
+                    </div>
+                    <div class="card-body">
+                      <p><strong>ইনভয়েস তারিখ:</strong> ${invoice.date}</p>
+                      <h6>ক্রয়ের আইটেমসমূহ:</h6>
+                      <ul class="product-list">
+                        ${invoice.items.map(item => {
+                          const product = productDetails[item.productId] || {};
+                          const productName = product.name || "নাম নেই";
+                          const productPrice = product.price || 0;
+                          const quantity = item.quantity || 0;
+                          const totalPrice = productPrice * quantity;
+                          return `
+                            <li>
+                              <strong>প্রোডাক্ট:</strong> ${productName} |
+                              <strong>পরিমাণ:</strong> ${quantity} |
+                              <strong>একক মূল্য:</strong> ${productPrice} টাকা |
+                              <strong>মোট:</strong> ${totalPrice} টাকা
+                            </li>
+                          `;
+                        }).join('')}
+                      </ul>
+                      <p><strong>মোট:</strong> ${invoice.invoiceTotal} টাকা</p>
+                      <p><strong>ডিসকাউন্ট:</strong> ${invoice.discount} টাকা</p>
+                      <p><strong>সর্বশেষ টোটাল:</strong> ${invoice.finalTotal} টাকা</p>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // পেজ লোড হলে ডেটা লোড করুন
+    document.addEventListener("DOMContentLoaded", loadData);
   </script>
-  <!-- Bootstrap JS Bundle -->
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
